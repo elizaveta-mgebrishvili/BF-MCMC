@@ -103,6 +103,8 @@ $
       2180.00  Y  -16459.984+335.616316*T-50*T*LN(T);
       6000.00  N !
  FUNCTION GFCCCR    298.15  +GHSERCR+7284+0.163*T;                     6000 N !
+$  functions for quick acess for parameters
+ FUNCTION SIGMA_OLD_COCRCO_0 298.15 -103863; 6000 N !
 $ ------------------------------------------------------------------------------
 $ Binary system
 $
@@ -128,7 +130,7 @@ $
  PAR  TC(HCP_A3,CO,CR:VA;1),,           +7834;,,                      N 01Oik !
 $
  PAR  G(SIGMA_OLD,CO:CR:CO),,           +8*GFCCCO+4*GHSERCR+18*GBCCCO
-             -103863+47.47*T;,,                                       N 01Oik !
+     +SIGMA_OLD_COCRCO_0+47.47*T;,,                                  N 01Oik !
  PAR  G(SIGMA_OLD,CO:CR:CR),,           +8*GFCCCO+22*GHSERCR
              -248108.8+79.12*T;,,                                     N 01Oik !
 $ ------------------------------------------------------------------------------
