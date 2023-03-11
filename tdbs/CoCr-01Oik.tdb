@@ -135,7 +135,7 @@ $
  PAR  G(SIGMA_OLD,CO:CR:CO),,           +8*GFCCCO+4*GHSERCR+18*GBCCCO
      +SIGMA_OLD_COCRCO_0+SIGMA_OLD_COCRCO_1*T;,,                      N 01Oik !
  PAR  G(SIGMA_OLD,CO:CR:CR),,           +8*GFCCCO+22*GHSERCR
-             SIGMA_OLD_COCRCR_0+SIGMA_OLD_COCRCR_1*T;,,               N 01Oik !
+             +SIGMA_OLD_COCRCR_0+SIGMA_OLD_COCRCR_1*T;,,               N 01Oik !
 $ ------------------------------------------------------------------------------
 $
  ASSESSED_SYSTEM
