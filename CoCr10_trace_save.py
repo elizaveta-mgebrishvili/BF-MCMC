@@ -167,21 +167,19 @@ with test_model:
         
     # y_det = pm.Deterministic("y_det", logl(theta))
     y_norm = pm.Normal("y_norm", mu=logl(theta), sigma = 0.001, observed=y_obs)
-    pp = pm.sample_prior_predictive(samples=2000)
-    # trace = pm.sample(draws=2000, tune=500, idata_kwargs={"log_likelihood": True}, progressbar=True)
-pp.to_json('calc_res/pp_cocr10_2000.json')
-print('pp saved')
-print('start sample')
-with test_model:
     trace = pm.sample(1000, tune=700, chains = 4, idata_kwargs={"log_likelihood": True}) # количество ядер на вм
-
+    # trace = pm.sample(draws=2000, tune=500, idata_kwargs={"log_likelihood": True}, progressbar=True)
 trace.to_json('calc_res/trace_cocr10_700x1000x4.json')
 print('trace saved')
-
 
 with test_model:
     ppc = pm.sample_posterior_predictive(trace)
 ppc.to_json('calc_res/ppc_cocr10_700x1000x4.json')
 print('ppc saved')
+
+with test_model:
+    pp = pm.sample_prior_predictive(samples=2000)
+pp.to_json('calc_res/pp_cocr10_2000.json')
+print('pp saved')
 print('finish')
 
