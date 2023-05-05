@@ -23,8 +23,10 @@ def func():
 
     # import seaborn as sns
 
-    # пути к tdb
-    cc10_path = "tdbs/CoCr-01Oik_with_new_functions.tdb"
+    # пути
+    cc18_path = "tdbs\CoCr-18Cac_with_new_functions.tdb"
+    path_sigma_fcc = 'emp_data\sigma_fcc_allibert.xls' 
+    path_sigma_hcp ='emp_data\sigma_hcp_allibert.xls'
 
     print(f"Running on PyMC v{pm.__version__}") # 5.1.2
     print(f"Running on NumPy v{np.__version__}") # 1.22.1
@@ -119,9 +121,9 @@ def func():
     print('LogLike')
 
                                 
-    df_sigma_fcc = pd.read_excel('emp_data/sigma_fcc_allibert.xls')
+    df_sigma_fcc = pd.read_excel(path_sigma_fcc)
     # df_sigma_bcc = pd.read_excel('emp_data/sigma_bcc_allibert.xls')
-    df_sigma_hcp = pd.read_excel('emp_data/sigma_hcp_allibert.xls')
+    df_sigma_hcp = pd.read_excel(path_sigma_hcp)
 
     df_sigma_fcc = pd.concat([df_sigma_fcc, df_sigma_hcp])
 
@@ -131,24 +133,23 @@ def func():
     df_sigma_fcc_sigma_old = df_sigma_fcc_sigma_old.sort_values('T')
 
 
-    db10 = Database(cc10_path)
+    db10 = Database(cc18_path)
 
+    phases10 = list(db10.phases.keys())
     press = 101325
     elements = ['CR', 'CO', 'VA']
+    component = 'CR'
     el_cnt = 1
 
-
     T = df_sigma_fcc_sigma_old['T'].to_numpy()
-    phase = 'SIGMA_OLD'
+    phase = 'SIGMA_D8B'
 
     y_obs = df_sigma_fcc_sigma_old['cr_conc'].values
     conditions = {v.X('CR'):0.5, v.P: 101325, v.T: T, v.N: el_cnt}
-    parameters_list = ['SIGMA_OLD_COCRCO_0', 'SIGMA_OLD_COCRCO_1', 'SIGMA_OLD_COCRCR_0', 'SIGMA_OLD_COCRCR_1']
-    component = 'CR'
+    parameters_list = ['GSCRCO1', 'GSCOCRCO1', 'GSCOCRCO2', 'GSCRCO2', 'GSCOCR1',  'GSCOCR2', 'GSCOCR3']
 
     print('T', T)
     print('y_obs', y_obs)
-    # print('phases', phases)
     print('phase', phase)
 
     test_model = pm.Model()
@@ -158,24 +159,27 @@ def func():
 
     with test_model:
         # uniform priors on m and c
-        COCRCO_0 = pm.Normal("SIGMA_OLD_COCRCO_0", mu=-103863.0, sigma=1)
-        COCRCO_1 = pm.Normal("SIGMA_OLD_COCRCO_1", mu=47.47, sigma=1)
-        COCRCR_0 = pm.Normal("SIGMA_OLD_COCRCR_0", mu=-248108.8, sigma=1)
-        COCRCR_1 = pm.Normal("SIGMA_OLD_COCRCR_1", mu=79.12, sigma=1) 
-        
-        theta = pt.as_tensor_variable([COCRCO_0, COCRCO_1, COCRCR_0, COCRCR_1])
+        GSCRCO1 = pm.Normal("GSCRCO1", mu=-526000.0, sigma=1)
+        GSCOCRCO1 = pm.Normal("GSCOCRCO1", mu=-200000.0, sigma=1)
+        GSCOCRCO2 = pm.Normal("GSCOCRCO2", mu=20.0, sigma=1)
+        GSCRCO2 = pm.Normal("GSCRCO2", mu=49.0, sigma=1) 
+        GSCOCR1 = pm.Normal("GSCOCR1", mu=180000.0, sigma=1) 
+        GSCOCR2 = pm.Normal("GSCOCR2", mu=348000.0, sigma=1) 
+        GSCOCR3 = pm.Normal("GSCOCR3", mu=525000.0, sigma=1) 
+
+        theta = pt.as_tensor_variable([GSCRCO1, GSCOCRCO1, GSCOCRCO2, GSCRCO2, GSCOCR1,  GSCOCR2, GSCOCR3])
             
         # y_det = pm.Deterministic("y_det", logl(theta))
         y_norm = pm.Normal("y_norm", mu=logl(theta), sigma = 0.001, observed=y_obs)
         # trace = pm.sample(1000, tune=700, chains = 4, idata_kwargs={"log_likelihood": True}) # количество ядер на вм
         # trace = pm.sample(5, tune=5, chains = 4, idata_kwargs={"log_likelihood": True}) # количество ядер на вм
-        trace = pm.sample(draws=2000, tune=500, idata_kwargs={"log_likelihood": True}, progressbar=True)
-    trace.to_json('calc_res/trace_cocr10_700x1000x4.json')
+        trace = pm.sample(draws=1000, tune=700, chains = 2, idata_kwargs={"log_likelihood": True}, progressbar=True)
+    trace.to_json('calc_res/trace_cocr18_700x1000x4.json')
     print('trace saved')
 
     with test_model:
         ppc = pm.sample_posterior_predictive(trace)
-    ppc.to_json('calc_res/ppc_cocr10_700x1000x4.json')
+    ppc.to_json('calc_res/ppc_cocr18_700x1000x4.json')
     print('ppc saved')
 
     with test_model:
