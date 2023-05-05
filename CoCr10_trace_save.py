@@ -1,3 +1,5 @@
+print('start')
+
 import IPython
 import matplotlib
 import matplotlib.pyplot as plt
@@ -61,6 +63,7 @@ def from_xarray_to_pandas(xarray_data, component_str, goal_phase_str):
     df_res['conc'].fillna(10, inplace=True)
 
     return df_res
+print('from_xarray_to_pandas')
 
 # define a pytensor Op for our likelihood function
 class LogLike(pt.Op):
@@ -113,6 +116,8 @@ class LogLike(pt.Op):
                 .to_numpy())
 
         outputs[0][0] = y_eq
+print('LogLike')
+
                              
 df_sigma_fcc = pd.read_excel('emp_data/sigma_fcc_allibert.xls')
 # df_sigma_bcc = pd.read_excel('emp_data/sigma_bcc_allibert.xls')
@@ -149,6 +154,7 @@ print('phase', phase)
 test_model = pm.Model()
 
 logl = LogLike(db10, conditions, phase, elements, component, parameters_list)
+print('with test_model')
 
 with test_model:
     # uniform priors on m and c
@@ -164,12 +170,18 @@ with test_model:
     pp = pm.sample_prior_predictive(samples=2000)
     # trace = pm.sample(draws=2000, tune=500, idata_kwargs={"log_likelihood": True}, progressbar=True)
 pp.to_json('calc_res/pp_cocr10_2000.json')
-
+print('pp saved')
+print('start sample')
 with test_model:
     trace = pm.sample(1000, tune=700, chains = 4, idata_kwargs={"log_likelihood": True}) # количество ядер на вм
 
 trace.to_json('calc_res/trace_cocr10_700x1000x4.json')
+print('trace saved')
+
 
 with test_model:
     ppc = pm.sample_posterior_predictive(trace)
 ppc.to_json('calc_res/ppc_cocr10_700x1000x4.json')
+print('ppc saved')
+print('finish')
+
