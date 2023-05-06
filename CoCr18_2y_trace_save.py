@@ -206,7 +206,7 @@ def func(db10, conditions_05, conditions_75, phase, elements, component, paramet
         with test_model:
             pp = pm.sample_prior_predictive(samples=2000)
 
-        pp.to_json('pp_cocr18_2Sx4000.json')
+        pp.to_json('pp_cocr18_2Sx2000.json')
 
 if __name__ == '__main__':
     func(db10, conditions_05, conditions_75, phase, elements, component, parameters_list, y_obs_05, y_obs_75)
