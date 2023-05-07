@@ -18,6 +18,17 @@ import pytensor.tensor as pt
 # theano.config.exception_verbosity = 'high' # должно выдавать подробное описание ошибки, но не помогает
 
 import aesara
+# import aesara.tensor as аt
+
+# import warnings
+# # warnings.filterwarnings("ignore")
+
+# def fxn():
+#     warnings.warn("RuntimeWarning", RuntimeWarning)
+
+# with warnings.catch_warnings():
+#     warnings.simplefilter("ignore")
+#     fxn()
 
 # import seaborn as sns
 
@@ -58,7 +69,7 @@ def from_xarray_to_pandas(xarray_data, component_str, goal_phase_str):
 
     # заменили NaN значения
     df_res['phase'].fillna(goal_phase_str, inplace=True)
-    df_res['conc'].fillna(10, inplace=True)
+    df_res['conc'].fillna(np.float32(10), inplace=True)
 
     return df_res
 
@@ -72,7 +83,7 @@ df_hcp_fcc['T'] = df_hcp_fcc['T'].round(2)
 df_hcp_fcc['cr_conc'] = df_hcp_fcc['cr_conc'].round(6)
 df_hcp_fcc = df_hcp_fcc[(df_hcp_fcc['phase'] == 'sigma_old')].reset_index()
 df_hcp_fcc.sort_values('T', inplace=True)
-df_hcp_fcc
+# df_hcp_fcc
 
 # для 0.75
 df_bcc = pd.read_excel('emp_data/sigma_bcc_allibert.xls')
@@ -81,7 +92,7 @@ df_bcc['T'] = df_bcc['T'].round(2)
 df_bcc['cr_conc'] = df_bcc['cr_conc'].round(6)
 df_bcc = df_bcc[(df_bcc['phase'] == 'sigma_old')].reset_index()
 df_bcc.sort_values('T', inplace=True)
-df_bcc
+# df_bcc
 
 # общие данные для расчетов
 db10 = Database(cc10_path)
@@ -153,8 +164,6 @@ class LogLike(pt.Op):
         #  ,'SIGMA_OLD_COCRCR_1': COCRCR_1
         # }
         # print(new_parameters)
-        
-        
         y_eq = (from_xarray_to_pandas(equilibrium(self.db_tdb
                                             , self.elements_list
                                             , self.phases_list
@@ -163,12 +172,15 @@ class LogLike(pt.Op):
                                         ), self.component_str, self.phase_str)['conc']
                 .astype(np.float32)
                 .to_numpy())
+        
+        # print(len(self.conditions_dict[v.T]))
+        # print(self.conditions_dict[v.T])
 
         outputs[0][0] = y_eq
                              
 def func(db10, conditions_05, conditions_75, phase, elements, component, parameters_list, y_obs_05, y_obs_75):
-    pytensor.config.exception_verbosity = 'high' 
-    import psutil
+    pytensor.config.exception_verbosity = 'high'
+    # import psutil
 
     test_model = pm.Model()
 
@@ -184,29 +196,36 @@ def func(db10, conditions_05, conditions_75, phase, elements, component, paramet
         GSCOCR1 = pm.Normal("GSCOCR1", mu=180000.0, sigma=1) 
         GSCOCR2 = pm.Normal("GSCOCR2", mu=348000.0, sigma=1) 
         GSCOCR3 = pm.Normal("GSCOCR3", mu=525000.0, sigma=1) 
-
+        
         theta = pt.as_tensor_variable([GSCRCO1, GSCOCRCO1, GSCOCRCO2, GSCRCO2, GSCOCR1,  GSCOCR2, GSCOCR3])
+        
+        y_obs_05_pm = pm.ConstantData(name = 'y_obs_05_data', value=y_obs_05)
+        y_obs_75_pm = pm.ConstantData(name = 'y_obs_75_data', value=y_obs_75)
+        
+        # y_norm_05 = pm.Normal("y_norm_05", mu=logl_05(theta), sigma = 0.001, observed=np.float32(y_obs_05))
+        # y_norm_75 = pm.Normal("y_norm_75", mu=logl_75(theta), sigma = 0.001, observed=np.float32(y_obs_75))
 
-        y_norm_05 = pm.Normal("y_norm_05", mu=logl_05(theta), sigma = 0.001, observed=y_obs_05)
-        y_norm_75 = pm.Normal("y_norm_75", mu=logl_75(theta), sigma = 0.001, observed=y_obs_75)
-
-        # trace = pm.sample(5, tune=5, chains = 4, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
-        # print('trace done')
-        trace = pm.sample(1000, tune=700, chains = 2, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
+        y_norm_05 = pm.Normal("y_norm_05", mu=logl_05(theta), sigma = 0.001, observed=y_obs_05_pm)
+        y_norm_75 = pm.Normal("y_norm_75", mu=logl_75(theta), sigma = 0.001, observed=y_obs_75_pm)
+        
+        trace = pm.sample(5, tune=5, chains = 4, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
+    
+        print('trace done')
+        # trace = pm.sample(1000, tune=700, chains = 2, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
         # trace = pm.sample(draws=2000, tune=500, idata_kwargs={"log_likelihood": True}, progressbar=True)
 
 
-        trace.to_json('trace_cocr18_2Sx700x1000x2.json')
+        trace.to_json('trace_cocr18_data_test.json')
 
-        with test_model:
-            ppc = pm.sample_posterior_predictive(trace)
+        # with test_model:
+        #     ppc = pm.sample_posterior_predictive(trace)
 
-        ppc.to_json('ppc_cocr18_2Sx700x1000x2.json')
+        # ppc.to_json('ppc_cocr18_2Sx700x1000x2.json')
 
-        with test_model:
-            pp = pm.sample_prior_predictive(samples=2000)
+        # with test_model:
+        #     pp = pm.sample_prior_predictive(samples=2000)
 
-        pp.to_json('pp_cocr18_2Sx2000.json')
+        # pp.to_json('pp_cocr18_2Sx2000.json')
 
 if __name__ == '__main__':
     func(db10, conditions_05, conditions_75, phase, elements, component, parameters_list, y_obs_05, y_obs_75)
