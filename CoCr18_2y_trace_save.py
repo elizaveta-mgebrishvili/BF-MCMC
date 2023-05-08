@@ -177,55 +177,63 @@ class LogLike(pt.Op):
         # print(self.conditions_dict[v.T])
 
         outputs[0][0] = y_eq
+    
+test_model = pm.Model()
+
+logl_05 = LogLike(db10, conditions_05, phase, elements, component, parameters_list)
+logl_75 = LogLike(db10, conditions_75, phase, elements, component, parameters_list)
+s = 0.000001
+
+with test_model:
+    # uniform priors on m and c
+    GSCRCO1 = pm.Normal("GSCRCO1", mu=-526000.0, sigma=s) # sigma = 1,
+    GSCOCRCO1 = pm.Normal("GSCOCRCO1", mu=-200000.0, sigma=s)
+    GSCOCRCO2 = pm.Normal("GSCOCRCO2", mu=20.0, sigma=s)
+    GSCRCO2 = pm.Normal("GSCRCO2", mu=49.0, sigma=s) 
+    GSCOCR1 = pm.Normal("GSCOCR1", mu=180000.0, sigma=s) 
+    GSCOCR2 = pm.Normal("GSCOCR2", mu=348000.0, sigma=s) 
+    GSCOCR3 = pm.Normal("GSCOCR3", mu=525000.0, sigma=s) 
+    
+    theta = pt.as_tensor_variable([GSCRCO1, GSCOCRCO1, GSCOCRCO2, GSCRCO2, GSCOCR1,  GSCOCR2, GSCOCR3])
+    
+    y_obs_05_pm = pm.ConstantData(name = 'y_obs_05_data', value=y_obs_05)
+    y_obs_75_pm = pm.ConstantData(name = 'y_obs_75_data', value=y_obs_75)
+    
+    # y_norm_05 = pm.Normal("y_norm_05", mu=logl_05(theta), sigma = 0.001, observed=np.float32(y_obs_05))
+    # y_norm_75 = pm.Normal("y_norm_75", mu=logl_75(theta), sigma = 0.001, observed=np.float32(y_obs_75))
+    y_norm_05 = pm.Normal("y_norm_05", mu=logl_05(theta), sigma = s, observed=y_obs_05_pm) # sigma = 0.001,
+    y_norm_75 = pm.Normal("y_norm_75", mu=logl_75(theta), sigma = s,observed=y_obs_75_pm)
                              
-def func(db10, conditions_05, conditions_75, phase, elements, component, parameters_list, y_obs_05, y_obs_75):
+def trace_f(test_model):
     pytensor.config.exception_verbosity = 'high'
     # import psutil
-
-    test_model = pm.Model()
-
-    logl_05 = LogLike(db10, conditions_05, phase, elements, component, parameters_list)
-    logl_75 = LogLike(db10, conditions_75, phase, elements, component, parameters_list)
+    # print('trace done')
+    with test_model:
+        # trace = pm.sample(5, tune=5, chains = 4, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
+        trace = pm.sample(1000, tune=700, chains = 2, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
+        # trace = pm.sample(draws=2000, tune=500, idata_kwargs={"log_likelihood": True}, progressbar=True)
+    trace.to_json('trace_cocr18_2Sx700x1000x2_20230508.json')
 
     with test_model:
-        # uniform priors on m and c
-        GSCRCO1 = pm.Normal("GSCRCO1", mu=-526000.0, sigma=1)
-        GSCOCRCO1 = pm.Normal("GSCOCRCO1", mu=-200000.0, sigma=1)
-        GSCOCRCO2 = pm.Normal("GSCOCRCO2", mu=20.0, sigma=1)
-        GSCRCO2 = pm.Normal("GSCRCO2", mu=49.0, sigma=1) 
-        GSCOCR1 = pm.Normal("GSCOCR1", mu=180000.0, sigma=1) 
-        GSCOCR2 = pm.Normal("GSCOCR2", mu=348000.0, sigma=1) 
-        GSCOCR3 = pm.Normal("GSCOCR3", mu=525000.0, sigma=1) 
-        
-        theta = pt.as_tensor_variable([GSCRCO1, GSCOCRCO1, GSCOCRCO2, GSCRCO2, GSCOCR1,  GSCOCR2, GSCOCR3])
-        
-        y_obs_05_pm = pm.ConstantData(name = 'y_obs_05_data', value=y_obs_05)
-        y_obs_75_pm = pm.ConstantData(name = 'y_obs_75_data', value=y_obs_75)
-        
-        # y_norm_05 = pm.Normal("y_norm_05", mu=logl_05(theta), sigma = 0.001, observed=np.float32(y_obs_05))
-        # y_norm_75 = pm.Normal("y_norm_75", mu=logl_75(theta), sigma = 0.001, observed=np.float32(y_obs_75))
+            ppc = pm.sample_posterior_predictive(trace)
 
-        y_norm_05 = pm.Normal("y_norm_05", mu=logl_05(theta), sigma = 0.001, observed=y_obs_05_pm)
-        y_norm_75 = pm.Normal("y_norm_75", mu=logl_75(theta), sigma = 0.001, observed=y_obs_75_pm)
-        
-        trace = pm.sample(5, tune=5, chains = 4, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
-    
-        print('trace done')
-        # trace = pm.sample(1000, tune=700, chains = 2, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
-        # trace = pm.sample(draws=2000, tune=500, idata_kwargs={"log_likelihood": True}, progressbar=True)
+    ppc.to_json('ppc_cocr18_2Sx700x1000x2_20230508.json')
 
+    # return trace
 
-        trace.to_json('trace_cocr18_data_test.json')
+def ppc_f(test_model, trace):
+    with test_model:
+            ppc = pm.sample_posterior_predictive(trace)
 
-        # with test_model:
-        #     ppc = pm.sample_posterior_predictive(trace)
+    ppc.to_json('ppc_cocr18_2Sx700x1000x2_20230508.json')
 
-        # ppc.to_json('ppc_cocr18_2Sx700x1000x2.json')
+def pp_f(test_model):
+    with test_model:
+        pp = pm.sample_prior_predictive(samples=2000)
 
-        # with test_model:
-        #     pp = pm.sample_prior_predictive(samples=2000)
-
-        # pp.to_json('pp_cocr18_2Sx2000.json')
+    pp.to_json('pp_cocr18_2Sx2000_20230508.json')
 
 if __name__ == '__main__':
-    func(db10, conditions_05, conditions_75, phase, elements, component, parameters_list, y_obs_05, y_obs_75)
+    trace_f(test_model)
+    # ppc_f(test_model, traces)
+    pp_f(test_model)
