@@ -182,7 +182,7 @@ test_model = pm.Model()
 
 logl_05 = LogLike(db10, conditions_05, phase, elements, component, parameters_list)
 logl_75 = LogLike(db10, conditions_75, phase, elements, component, parameters_list)
-s = 0.0001
+s = 0.001
 
 with test_model:
     # uniform priors on m and c
@@ -208,30 +208,36 @@ def trace_f(test_model):
     pytensor.config.exception_verbosity = 'high'
     # import psutil
     # print('trace done')
-    with test_model:
-        # trace = pm.sample(5, tune=5, chains = 4, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
-        trace = pm.sample(1000, tune=700, chains = 2, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
-        # trace = pm.sample(draws=2000, tune=500, idata_kwargs={"log_likelihood": True}, progressbar=True)
-    trace.to_json('trace_cocr18_2Sx700x1000x2_20230508.json')
+    import multiprocess as mp
+    with mp.Pool(processes=4):
+        with test_model:
+            # trace = pm.sample(5, tune=5, chains = 4, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
+            trace = pm.sample(1000, tune=700, chains = 2, cores = 1, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
+            # trace = pm.sample(draws=2000, tune=500, idata_kwargs={"log_likelihood": True}, progressbar=True)
+        trace.to_json('trace_cocr18_2Sx700x1000x2_20230508.json')
 
-    with test_model:
-            ppc = pm.sample_posterior_predictive(trace)
+        with test_model:
+                ppc = pm.sample_posterior_predictive(trace)
 
-    ppc.to_json('ppc_cocr18_2Sx700x1000x2_20230508.json')
+        ppc.to_json('ppc_cocr18_2Sx700x1000x2_20230508.json')
 
     # return trace
 
 def ppc_f(test_model, trace):
-    with test_model:
-            ppc = pm.sample_posterior_predictive(trace)
+    import multiprocess as mp
+    with mp.Pool(processes=4):
+        with test_model:
+                ppc = pm.sample_posterior_predictive(trace)
 
-    ppc.to_json('ppc_cocr18_2Sx700x1000x2_20230508.json')
+        ppc.to_json('ppc_cocr18_2Sx700x1000x2_20230508.json')
 
 def pp_f(test_model):
-    with test_model:
-        pp = pm.sample_prior_predictive(samples=2000)
+    import multiprocess as mp
+    with mp.Pool(processes=4):
+        with test_model:
+            pp = pm.sample_prior_predictive(samples=2000)
 
-    pp.to_json('pp_cocr18_2Sx2000_20230508.json')
+        pp.to_json('pp_cocr18_2Sx2000_20230508.json')
 
 if __name__ == '__main__':
     trace_f(test_model)
