@@ -164,12 +164,14 @@ class LogLike(pt.Op):
         #  ,'SIGMA_OLD_COCRCR_1': COCRCR_1
         # }
         # print(new_parameters)
-        y_eq = (from_xarray_to_pandas(equilibrium(self.db_tdb
-                                            , self.elements_list
-                                            , self.phases_list
-                                            , self.conditions_dict
-                                            , parameters = new_parameters
-                                        ), self.component_str, self.phase_str)['conc']
+        y_eq = (from_xarray_to_pandas
+                (equilibrium(self.db_tdb
+                             , self.elements_list
+                             , self.phases_list
+                             , self.conditions_dict
+                             , parameters = new_parameters
+                             ), self.component_str
+                             , self.phase_str)['conc']
                 .astype(np.float32)
                 .to_numpy())
         
@@ -212,7 +214,8 @@ def trace_f(test_model):
     with mp.Pool(processes=4):
         with test_model:
             # trace = pm.sample(5, tune=5, chains = 4, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
-            trace = pm.sample(1000, tune=700, chains = 2, cores = 1, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
+            # cores = 1
+            trace = pm.sample(1000, tune=700, chains = 2, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
             # trace = pm.sample(draws=2000, tune=500, idata_kwargs={"log_likelihood": True}, progressbar=True)
         trace.to_json('trace_cocr18_2Sx700x1000x2_20230508.json')
 
