@@ -182,7 +182,7 @@ test_model = pm.Model()
 
 logl_05 = LogLike(db10, conditions_05, phase, elements, component, parameters_list)
 logl_75 = LogLike(db10, conditions_75, phase, elements, component, parameters_list)
-s = 0.000001
+s = 0.0001
 
 with test_model:
     # uniform priors on m and c
