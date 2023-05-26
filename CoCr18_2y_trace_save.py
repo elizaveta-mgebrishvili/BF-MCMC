@@ -1,45 +1,56 @@
-import IPython
-import matplotlib
-import matplotlib.pyplot as plt
+################################################### ПОДГРУЗКА ПАКЕТОВ ################################################
 import pandas as pd
 import numpy as np
-import sympy
-import datetime
 
 # для расчетов над tdb
-from pycalphad import Database, equilibrium, variables as v, binplot
+from pycalphad import Database, equilibrium, variables as v
 
 # для MCMC расчетов
-import pymc as pm  # пакет для MCMC расчетов 
-import arviz as az # пакет для работы с типом данных arviz
+import pymc as pm
+import aesara
+import arviz as az
 import pytensor
 import pytensor.tensor as pt
-# import theano
-# theano.config.exception_verbosity = 'high' # должно выдавать подробное описание ошибки, но не помогает
-
-import aesara
-# import aesara.tensor as аt
-
-# import warnings
-# # warnings.filterwarnings("ignore")
-
-# def fxn():
-#     warnings.warn("RuntimeWarning", RuntimeWarning)
-
-# with warnings.catch_warnings():
-#     warnings.simplefilter("ignore")
-#     fxn()
-
-# import seaborn as sns
-
-# пути к tdb
-cc10_path = "tdbs/CoCr-18Cac_with_new_functions.tdb"
+cc18_path = "tdbs/CoCr-18Cac_with_new_functions.tdb"
 
 print(f"Running on PyMC v{pm.__version__}") # 5.3.1
 print(f"Running on NumPy v{np.__version__}") # 1.22.1
 print(f"Running on ArviZ v{az.__version__}") # 0.12.1
 
+# пути к опытным данным
+path_sigma_fcc = 'emp_data/sigma_fcc_allibert.xls'
+path_sigma_hcp = 'emp_data/sigma_hcp_allibert.xls'
+path_bcc = 'emp_data/sigma_bcc_allibert.xls'
+
+
+# если скрипт не работает, возможно дело в версиях библиотек
+print(f"Running on PyMC v{pm.__version__}") # 5.3.1
+print(f"Running on NumPy v{np.__version__}") # 1.22.1
+print(f"Running on ArviZ v{az.__version__}") # 0.12.1
+
+########################################### СОЗДАНИЕ СПЕЦИФИЧЕСКИХ ФУНКЦИЙ ############################################
+
 def from_xarray_to_pandas(xarray_data, component_str, goal_phase_str):
+
+    '''
+    Данная функция позволяет преобразовывать данные формата xarray_data
+    в список значений концентрации вещества в равновесном состоянии определенной фазы
+    
+    Т.о. на вход подаются следующие данные:
+        xarray_data - результат расчета функции equilibrium
+        component_str - вещество, концентрацию которого необходимо получить
+        goal_phase_str - фаза, для равнвоесного состояния которой нужно получить данные
+    
+    А на выходе функции получаем dataframe из трех стобцов:
+        T - температура
+        phase - название равновесной фазы (соответствует goal_phase_str)
+        conc - концентрация вещества component_str
+    
+    При этом, в случае, если размерность списка T не совпадает с размерностью списка conc,
+    недостающие значения типа nan заменяются на константы:
+        для phase - значение goal_phase_str
+        для conc - 10
+    '''
 
     import numpy as np
     import pandas as pd
@@ -69,34 +80,15 @@ def from_xarray_to_pandas(xarray_data, component_str, goal_phase_str):
 
     # заменили NaN значения
     df_res['phase'].fillna(goal_phase_str, inplace=True)
-    df_res['conc'].fillna(np.float32(10), inplace=True)
+    df_res['conc'].fillna(10, inplace=True)
 
     return df_res
+########################################### ПОДГРУЗКА ДАННЫХ ###############################################################
 
-# для 0.5
-df_sigma_fcc = pd.read_excel('emp_data/sigma_fcc_allibert.xls')
-df_sigma_hcp = pd.read_excel('emp_data/sigma_hcp_allibert.xls')
+# создание объекта Database
+db10 = Database(cc18_path)
 
-df_hcp_fcc = pd.concat([df_sigma_fcc, df_sigma_hcp])
-
-df_hcp_fcc['T'] = df_hcp_fcc['T'].round(2)
-df_hcp_fcc['cr_conc'] = df_hcp_fcc['cr_conc'].round(6)
-df_hcp_fcc = df_hcp_fcc[(df_hcp_fcc['phase'] == 'sigma_old')].reset_index()
-df_hcp_fcc.sort_values('T', inplace=True)
-# df_hcp_fcc
-
-# для 0.75
-df_bcc = pd.read_excel('emp_data/sigma_bcc_allibert.xls')
-
-df_bcc['T'] = df_bcc['T'].round(2)
-df_bcc['cr_conc'] = df_bcc['cr_conc'].round(6)
-df_bcc = df_bcc[(df_bcc['phase'] == 'sigma_old')].reset_index()
-df_bcc.sort_values('T', inplace=True)
-# df_bcc
-
-# общие данные для расчетов
-db10 = Database(cc10_path)
-
+# условия для проведения расчетов с помощью equilibrium
 press = 101325
 elements = ['CR', 'CO', 'VA']
 component = 'CR'
@@ -105,31 +97,38 @@ el_cnt = 1
 phase = 'SIGMA_D8B'
 parameters_list = ['GSCRCO1', 'GSCOCRCO1', 'GSCOCRCO2', 'GSCRCO2', 'GSCOCR1',  'GSCOCR2', 'GSCOCR3']
 
-# данные для расчетов с концентрацией хрома 0.5
-y_obs_05 = df_hcp_fcc['cr_conc'].values
+# подгрузка и преобразование опытных данных при концентрации хрома 0.5
+df_sigma_fcc = pd.read_excel(path_sigma_fcc)
+df_sigma_hcp = pd.read_excel(path_sigma_hcp)
 
+df_hcp_fcc = pd.concat([df_sigma_fcc, df_sigma_hcp])
+
+df_hcp_fcc['T'] = df_hcp_fcc['T'].round(2)
+df_hcp_fcc['cr_conc'] = df_hcp_fcc['cr_conc'].round(6)
+df_hcp_fcc = df_hcp_fcc[(df_hcp_fcc['phase'] == 'sigma_old')].reset_index()
+df_hcp_fcc.sort_values('T', inplace=True)
+
+y_obs_05 = df_hcp_fcc['cr_conc'].values
 T_05 = df_hcp_fcc['T'].to_numpy()
 conditions_05 = {v.X('CR'):0.5, v.P: 101325, v.T: T_05, v.N: el_cnt}
 
-print('T', len(T_05))
-print('T', T_05)
-print('y_obs', y_obs_05)
+# подгрузка и преобразование опытных данных при концентрации хрома 0.75
+df_bcc = pd.read_excel(path_bcc)
 
-# данные для расчетов с концентрацией хрома 0.75
+df_bcc['T'] = df_bcc['T'].round(2)
+df_bcc['cr_conc'] = df_bcc['cr_conc'].round(6)
+df_bcc = df_bcc[(df_bcc['phase'] == 'sigma_old')].reset_index()
+df_bcc.sort_values('T', inplace=True)
+
 y_obs_75 = df_bcc['cr_conc'].values
-
 T_75 = df_bcc['T'].to_numpy()
 conditions_75 = {v.X('CR'):0.75, v.P: 101325, v.T: T_75, v.N: el_cnt}
 
-print('T', len(T_75))
-print('T', T_75)
-print('y_obs', y_obs_75)
+########################################### ОПРЕДЕЛЕНИЕ КЛАССА ДЛЯ ПЕРЕГРУЗКИ ФУНКЦИЙ ######################################
 
-# define a pytensor Op for our likelihood function
 class LogLike(pt.Op):
-#     определяем тип входящих и исходящих данных
-    itypes = [pt.dvector]  # expects a vector of parameter values when called
-    otypes = [pt.fvector]  # outputs a single scalar value (the log likelihood)
+    itypes = [pt.dvector]
+    otypes = [pt.fvector]
 
     def __init__(self, db, conditions, phase, elements, component, parameters_list):
         self.db_tdb = db
@@ -145,41 +144,26 @@ class LogLike(pt.Op):
 
     def perform(self, node, inputs, outputs):
         
-        (theta,) = inputs  # this will contain my variables
+        (theta,) = inputs
         
-        # новая версия
         new_parameters = dict()
         
         for i in range(len(self.parameters_list)):
-            new_parameters[self.parameters_list[i]] = inputs[0][i]
-
+            new_parameters[self.parameters_list[i]] = inputs[0][i]        
         
-        # старая версия
-        # COCRCO_0, COCRCO_1, COCRCR_0, COCRCR_1 = theta
-
-        # new_parameters = {
-        #  'SIGMA_OLD_COCRCO_0' : COCRCO_0
-        #  ,'SIGMA_OLD_COCRCO_1': COCRCO_1
-        #  ,'SIGMA_OLD_COCRCR_0': COCRCR_0
-        #  ,'SIGMA_OLD_COCRCR_1': COCRCR_1
-        # }
-        # print(new_parameters)
-        y_eq = (from_xarray_to_pandas
-                (equilibrium(self.db_tdb
-                             , self.elements_list
-                             , self.phases_list
-                             , self.conditions_dict
-                             , parameters = new_parameters
-                             ), self.component_str
-                             , self.phase_str)['conc']
+        y_eq = (from_xarray_to_pandas(equilibrium(self.db_tdb
+                                            , self.elements_list
+                                            , self.phases_list
+                                            , self.conditions_dict
+                                            , parameters = new_parameters
+                                        ), self.component_str, self.phase_str)['conc']
                 .astype(np.float32)
                 .to_numpy())
-        
-        # print(len(self.conditions_dict[v.T]))
-        # print(self.conditions_dict[v.T])
 
         outputs[0][0] = y_eq
-    
+
+########################################### СОЗДАНИЕ МОДЕЛИ ДЛЯ СЕМПЛИРОВАНИЯ ##############################################
+
 test_model = pm.Model()
 
 logl_05 = LogLike(db10, conditions_05, phase, elements, component, parameters_list)
@@ -187,7 +171,6 @@ logl_75 = LogLike(db10, conditions_75, phase, elements, component, parameters_li
 s = 0.001
 
 with test_model:
-    # uniform priors on m and c
     GSCRCO1 = pm.Normal("GSCRCO1", mu=-526000.0, sigma=s) # sigma = 1,
     GSCOCRCO1 = pm.Normal("GSCOCRCO1", mu=-200000.0, sigma=s)
     GSCOCRCO2 = pm.Normal("GSCOCRCO2", mu=20.0, sigma=s)
@@ -201,31 +184,24 @@ with test_model:
     y_obs_05_pm = pm.ConstantData(name = 'y_obs_05_data', value=y_obs_05)
     y_obs_75_pm = pm.ConstantData(name = 'y_obs_75_data', value=y_obs_75)
     
-    # y_norm_05 = pm.Normal("y_norm_05", mu=logl_05(theta), sigma = 0.001, observed=np.float32(y_obs_05))
-    # y_norm_75 = pm.Normal("y_norm_75", mu=logl_75(theta), sigma = 0.001, observed=np.float32(y_obs_75))
-    y_norm_05 = pm.Normal("y_norm_05", mu=logl_05(theta), sigma = s, observed=y_obs_05_pm) # sigma = 0.001,
+    y_norm_05 = pm.Normal("y_norm_05", mu=logl_05(theta), sigma = s, observed=y_obs_05_pm)
     y_norm_75 = pm.Normal("y_norm_75", mu=logl_75(theta), sigma = s,observed=y_obs_75_pm)
                              
+########################################### СОЗДАНИЕ ФУНКЦИЙ ДЛЯ СЭМПЛИРОВАНИЯ #############################################
 def trace_f(test_model):
     pytensor.config.exception_verbosity = 'high'
     print('trace running')
     with test_model:
-        # trace = pm.sample(5, tune=5, chains = 4, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
-        # cores = 1
-        trace = pm.sample(1000, tune=700, chains = 2, idata_kwargs={"log_likelihood": True}, progressbar=True) # количество ядер на вм
-        # trace = pm.sample(draws=2000, tune=500, idata_kwargs={"log_likelihood": True}, progressbar=True)
+        trace = pm.sample(1000, tune=700, chains = 2, idata_kwargs={"log_likelihood": True}, progressbar=True)
     trace.to_json('trace_cocr18_2Sx700x1000x2_20230509.json')
     print('trace saved')
 
-    
     print('ppc running')
     with test_model:
             ppc = pm.sample_posterior_predictive(trace)
 
     ppc.to_json('ppc_cocr18_2Sx700x1000x2_20230509.json')
     print('ppc saved')
-
-    # return trace
 
 def ppc_f(test_model, trace):
     with test_model:
@@ -241,6 +217,7 @@ def pp_f(test_model):
     pp.to_json('pp_cocr18_2Sx2000_20230509.json')
     print('pp saved')
 
+########################################### ЗАПУСК СЭМПЛИРОВАНИЯ ########################################################
 if __name__ == '__main__':
     trace_f(test_model)
     pp_f(test_model)
