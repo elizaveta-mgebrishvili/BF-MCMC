@@ -2,7 +2,7 @@
 
 ## Используемые сокращения
 
-ТДБ - темродинамическая база данных
+ТДБ - темродинамическая база данных\
 ТДМ - термодинамическая модель
 
 ## Краткое описание проекта
@@ -14,12 +14,12 @@
 
 В репозитории представлено несколько типов файлов:
 1. Файлы, которые позволяют произвести семплирование апостериорных распределений параметров моделей, и их предсказания:
-    - [label](CoCr_2y_trace_save.py) - для ТДБ [label](tdbs/CoCr-01Oik_with_new_functions.tdb)
-    - [label](CoCr18_2y_trace_save.py) - для ТДБ [label](tdbs/CoCr-18Cac_with_new_functions.tdb)
+    - [CoCr_2y_trace_save.py](CoCr_2y_trace_save.py) - для ТДБ [tdbs/CoCr-01Oik_with_new_functions.tdb](tdbs/CoCr-01Oik_with_new_functions.tdb)
+    - [CoCr18_2y_trace_save.py](CoCr18_2y_trace_save.py) - для ТДБ [tdbs/CoCr-18Cac_with_new_functions.tdb](tdbs/CoCr-18Cac_with_new_functions.tdb)
 2. Файлы, где представлен пример оценки полученных распределний:
-    - [label](CoCr10_chains_analysis.ipynb) - для цепей, полученных в [label](CoCr_2y_trace_save.py)
-    - [label](CoCr18_chains_analysis.ipynb) - для цепей, полученных в [label](CoCr18_2y_trace_save.py)
-3. Файл, в котором реализовано сравнение моделей на основании полученных цепей: [label](models_comparison.ipynb)
+    - [CoCr10_chains_analysis.ipynb](CoCr10_chains_analysis.ipynb) - для цепей, полученных в [CoCr_2y_trace_save.py](CoCr_2y_trace_save.py)
+    - [CoCr18_chains_analysis.ipynb](CoCr18_chains_analysis.ipynb) - для цепей, полученных в [CoCr18_2y_trace_save.py](CoCr18_2y_trace_save.py)
+3. Файл, в котором реализовано сравнение моделей на основании полученных цепей: [models_comparison.ipynb](models_comparison.ipynb)
 
 ## Описание подходов, реализуемых в файлах
 
